@@ -2,7 +2,7 @@
 import subprocess
 import sys
 
-print("📦 Installing required packages...")
+#print("📦 Installing required packages...")
 packages = [
     "torch==2.5.1",
     "torchvision==0.20.1",
@@ -15,11 +15,12 @@ packages = [
     "openpyxl==3.1.2",
 ]
 
-for package in packages:
-    print(f"Installing {package}...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
+# for package in packages:
+#     print(f"Installing {package}...")
+#     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
-print("✅ Packages installed!\n")
+# print("✅ Packages installed!\n")
+print("Assuming all packages are already installed")
 
 from transformers import (
     AutoModelForCausalLM,
