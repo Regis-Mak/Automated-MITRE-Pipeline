@@ -1,11 +1,13 @@
 # Modal Notebook - Direct Execution
 # No decorators, no .remote() calls needed!
 
-# STEP 0: Install required packages
+# STEP 0: Install required packages (RUN ONCE, then comment out)
+# Uncomment the section below if packages aren't installed yet
+
 import subprocess
 import sys
 
-print("📦 Installing required packages...")
+print("📦 Installing required packages:")
 packages = [
     "torch==2.5.1",
     "torchvision==0.20.1",
@@ -19,10 +21,11 @@ packages = [
 ]
 
 for package in packages:
-    print(f"Installing {package}...")
+    print(f"Installing {package}")
     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
 print("✅ Packages installed!\n")
+
 
 from transformers import (
     AutoModelForCausalLM,
@@ -48,7 +51,8 @@ config = {
     'bash_dataset': "aelhalili/bash-commands-dataset",
     'excel_file': "enterprise-attack-v18.1.xlsx",
     'max_steps': 200,
-    'batch_size': 4,
+    'batch_size': 1,  # Reduced from 4 to 1
+    'gradient_accumulation_steps': 4,  # Simulate larger batch
     'learning_rate': 2e-4,
     'lora_r': 16,
     'lora_alpha': 16,
@@ -62,9 +66,14 @@ model = AutoModelForCausalLM.from_pretrained(
     config['base_model'],
     trust_remote_code=True,
     device_map="auto",
+    torch_dtype="auto",
+    low_cpu_mem_usage=True,
 )
 tokenizer = AutoTokenizer.from_pretrained(config['base_model'])
 tokenizer.pad_token = tokenizer.eos_token
+
+# Enable gradient checkpointing to save memory
+model.gradient_checkpointing_enable()
 
 # Add LoRA adapters
 lora_config = LoraConfig(
@@ -126,6 +135,7 @@ dataset = dataset.shuffle(seed=config['seed'])
 training_args = TrainingArguments(
     output_dir="./my-trained-model",
     per_device_train_batch_size=config['batch_size'],
+    gradient_accumulation_steps=config['gradient_accumulation_steps'],
     learning_rate=config['learning_rate'],
     max_steps=config['max_steps'],
     logging_steps=10,
@@ -134,6 +144,7 @@ training_args = TrainingArguments(
     fp16=True,
     optim="adamw_torch",
     report_to="none",
+    gradient_checkpointing=True,
 )
 
 trainer = SFTTrainer(
