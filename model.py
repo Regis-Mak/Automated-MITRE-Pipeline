@@ -1,18 +1,18 @@
 # Modal Notebook - Direct Execution
 # No decorators, no .remote() calls needed!
 
-# ==========================================
 # STEP 0: Install required packages (RUN ONCE, then comment out)
-# ==========================================
+# Uncomment the section below if packages aren't installed yet
+
 
 import subprocess
 import sys
 
-print("📦 Installing required packages...")
+print("📦 Installing required packages")
 packages = [
-    "torch==2.8.0",
-    "torchvision==0.23.0",
-    "transformers==4.45.2",
+    "torch==2.5.1",
+    "torchvision==0.20.1",
+    "transformers==4.46.0",
     "datasets==3.1.0",
     "accelerate==1.1.1",
     "peft==0.13.2",
@@ -22,14 +22,10 @@ packages = [
 ]
 
 for package in packages:
-    print(f"Installing {package}...")
+    print(f"Installing {package} . . .")
     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
 print("✅ Packages installed!\n")
-
-# ==========================================
-# IMPORTS
-# ==========================================
 
 from transformers import (
     AutoModelForCausalLM,
@@ -38,7 +34,6 @@ from transformers import (
 )
 from peft import LoraConfig, get_peft_model
 from trl import SFTTrainer
-from huggingface_hub import login
 import datasets
 import pandas as pd
 import json
@@ -46,12 +41,16 @@ import re
 import os
 
 # ==========================================
-# STEP 0: HUGGINGFACE LOGIN (MODAL SECRET)
+# HUGGINGFACE LOGIN (Modal Secret)
 # ==========================================
 
-hf_token = os.environ["HF_TOKEN"]
+from huggingface_hub import login
+
+# Get token from Modal secret named "llama-secret"
+hf_token = os.environ.get("HF_TOKEN")
 login(token=hf_token)
-print("🔐 Logged into Hugging Face!")
+
+print("🔐 Logged into Hugging Face!\n")
 
 # ==========================================
 # STEP 1: TRAIN THE MODEL
@@ -61,10 +60,10 @@ print("🚀 Starting training...")
 
 # Configuration
 config = {
-    'base_model': "meta-llama/Llama-3.1-8B-Instruct",
+    'base_model': "meta-llama/Llama-3.1-8B-Instruct",  # Changed to Llama 3.1
     'bash_dataset': "aelhalili/bash-commands-dataset",
     'excel_file': "enterprise-attack-v18.1.xlsx",
-    'max_steps': 750,
+    'max_steps': 750,  # Increased to 750
     'batch_size': 1,
     'gradient_accumulation_steps': 4,
     'learning_rate': 2e-4,
@@ -176,24 +175,31 @@ model_path = "./my-trained-model"
 
 print("\n🧪 Testing the model...")
 
-# Reload the trained model properly
-del model  # Free up memory
+# Clear memory and reload properly
+del model
+del trainer
 import torch
+import gc
 torch.cuda.empty_cache()
+gc.collect()
+
+# Reload with proper settings
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
-    device_map="auto",
     torch_dtype=torch.float16,
+    device_map="auto",
+    low_cpu_mem_usage=True,
 )
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-test_prompt = "### Cybersecurity Technique: Process Injection\n\nDescription: Inject malicious code into legitimate process\n\n### Suggested Commands for Detection/Investigation:\n"
+test_prompt = "### Task: Create a bash command to detect Process Injection\n\n### Command:\n"
 
 inputs = tokenizer(test_prompt, return_tensors="pt").to("cuda")
 outputs = model.generate(
     **inputs,
-    max_new_tokens=100,
+    max_new_tokens=50,
     temperature=0.7,
     do_sample=True,
 )
