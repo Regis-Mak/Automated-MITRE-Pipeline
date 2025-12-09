@@ -4,7 +4,6 @@
 # STEP 0: Install required packages (RUN ONCE, then comment out)
 # Uncomment the section below if packages aren't installed yet
 
-
 import subprocess
 import sys
 
@@ -26,7 +25,6 @@ for package in packages:
     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
 print("✅ Packages installed!\n")
-
 
 from transformers import (
     AutoModelForCausalLM,
@@ -51,9 +49,9 @@ config = {
     'base_model': "microsoft/phi-2",
     'bash_dataset': "aelhalili/bash-commands-dataset",
     'excel_file': "enterprise-attack-v18.1.xlsx",
-    'max_steps': 200,
-    'batch_size': 1,  # Reduced from 4 to 1
-    'gradient_accumulation_steps': 4,  # Simulate larger batch
+    'max_steps': 500,  # Increased from 200 to 500
+    'batch_size': 1,
+    'gradient_accumulation_steps': 4,
     'learning_rate': 2e-4,
     'lora_r': 16,
     'lora_alpha': 16,
@@ -110,18 +108,8 @@ print(f"Found {len(df)} techniques in Excel file")
 techniques_dataset = datasets.Dataset.from_pandas(df)
 
 def format_technique_prompt(example):
-    prompt = f"""### Cybersecurity Technique: {example['name']}
-
-Description: {example['description']}
-Tactics: {example['tactics']}
-Platforms: {example['platforms']}
-
-### Suggested Commands for Detection/Investigation:
-Based on the technique description, relevant commands include:
-- Command to detect this activity
-- Command to investigate indicators
-- Command to analyze affected systems"""
-    
+    # Simpler format that matches the bash dataset better
+    prompt = f"### Task: Create a command to detect {example['name']} on {example['platforms']}\n\n### Command:\n"
     return {"text": prompt}
 
 techniques_dataset = techniques_dataset.map(format_technique_prompt)
@@ -219,40 +207,37 @@ for idx, row in df.iterrows():
         
     print(f"Processing {idx + 1}/{len(df)}: {row['name']} (Commands so far: {len(all_commands)}/{max_commands})")
     
-    prompt = f"""### Cybersecurity Technique: {row['name']}
-
-Description: {row['description']}
-Tactics: {row['tactics']}
-Platforms: {row['platforms']}
-
-### Suggested Commands for Detection/Investigation:
-"""
+    # Generate multiple command types for each technique
+    command_types = [
+        f"### Task: Create a bash command to detect {row['name']}\n\n### Command:\n",
+        f"### Task: Create a bash command to investigate {row['name']}\n\n### Command:\n",
+        f"### Task: Create a bash command to monitor for {row['name']}\n\n### Command:\n",
+    ]
     
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=200,
-        temperature=0.7,
-        do_sample=True,
-    )
-    
-    generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
-    # Extract just the commands part
-    if "### Suggested Commands" in generated:
-        commands_text = generated.split("### Suggested Commands for Detection/Investigation:")[-1].strip()
-    else:
-        commands_text = generated
-    
-    # Split commands by newlines or bullet points
-    command_lines = re.split(r'\n[-•*]\s*|\n', commands_text)
-    command_lines = [cmd.strip().lstrip('-•* ') for cmd in command_lines if cmd.strip()]
-    
-    # Create separate entry for each command (but don't exceed 700 total)
-    for command in command_lines:
+    for prompt in command_types:
         if len(all_commands) >= max_commands:
             break
-        if command:  # Only add non-empty commands
+            
+        inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=80,  # Shorter for single commands
+            temperature=0.7,
+            do_sample=True,
+        )
+        
+        generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        
+        # Extract just the command after "### Command:"
+        if "### Command:" in generated:
+            command = generated.split("### Command:")[-1].strip()
+        else:
+            command = generated.strip()
+        
+        # Take only the first line as the command
+        command = command.split('\n')[0].strip()
+        
+        if command and len(command) > 5:  # Only add if it's a real command
             all_commands.append({
                 "technique_id": row["ID"],
                 "stix_id": row["STIX ID"],
