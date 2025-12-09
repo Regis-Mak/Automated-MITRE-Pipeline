@@ -4,17 +4,19 @@ import sys
 
 print("📦 Installing required packages...")
 packages = [
-    "transformers==4.54.0",
-    "datasets==3.6.0",
-    "torch==2.7.0",
-    "accelerate==1.9.0",
-    "peft==0.16.0",
-    "trl==0.19.1",
+    "torch==2.5.1",
+    "torchvision==0.20.1",
+    "transformers==4.46.0",
+    "datasets==3.1.0",
+    "accelerate==1.1.1",
+    "peft==0.13.2",
+    "trl==0.11.4",
     "pandas==2.2.0",
     "openpyxl==3.1.2",
 ]
 
 for package in packages:
+    print(f"Installing {package}...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
 print("✅ Packages installed!\n")
