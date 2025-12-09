@@ -1,5 +1,23 @@
-# Install packages if needed
-# !pip install transformers datasets torch accelerate peft trl pandas openpyxl
+# STEP 0: Install required packages
+import subprocess
+import sys
+
+print("📦 Installing required packages...")
+packages = [
+    "transformers==4.54.0",
+    "datasets==3.6.0",
+    "torch==2.7.0",
+    "accelerate==1.9.0",
+    "peft==0.16.0",
+    "trl==0.19.1",
+    "pandas==2.2.0",
+    "openpyxl==3.1.2",
+]
+
+for package in packages:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
+
+print("✅ Packages installed!\n")
 
 from transformers import (
     AutoModelForCausalLM,
