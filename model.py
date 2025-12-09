@@ -7,11 +7,11 @@
 import subprocess
 import sys
 
-print("📦 Installing required packages:")
+print("📦 Installing required packages...")
 packages = [
-    "torch==2.5.1",
-    "torchvision==0.20.1",
-    "transformers==4.46.0",
+    "torch==2.8.0",
+    "torchvision==0.23.0",
+    "transformers==4.45.2",
     "datasets==3.1.0",
     "accelerate==1.1.1",
     "peft==0.13.2",
@@ -21,7 +21,7 @@ packages = [
 ]
 
 for package in packages:
-    print(f"Installing {package}")
+    print(f"Installing {package}...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
 print("✅ Packages installed!\n")
@@ -46,10 +46,10 @@ print("🚀 Starting training...")
 
 # Configuration
 config = {
-    'base_model': "microsoft/phi-2",
+    'base_model': "meta-llama/Llama-3.1-8B-Instruct",  # Changed to Llama 3.1
     'bash_dataset': "aelhalili/bash-commands-dataset",
     'excel_file': "enterprise-attack-v18.1.xlsx",
-    'max_steps': 500,  # Increased from 200 to 500
+    'max_steps': 750,  # Increased to 750
     'batch_size': 1,
     'gradient_accumulation_steps': 4,
     'learning_rate': 2e-4,
@@ -78,7 +78,7 @@ model.gradient_checkpointing_enable()
 lora_config = LoraConfig(
     r=config['lora_r'],
     lora_alpha=config['lora_alpha'],
-    target_modules=["q_proj", "v_proj"],
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],  # Llama 3.1 modules
     lora_dropout=0.05,
     bias="none",
     task_type="CAUSAL_LM",
@@ -198,7 +198,7 @@ print("\n🔄 Generating commands for ALL techniques...")
 df = pd.read_excel(config['excel_file'])
 
 all_commands = []
-max_commands = 700  # Stop when we reach 700 commands
+max_commands = 750  # Stop when we reach 750 commands
 
 for idx, row in df.iterrows():
     if len(all_commands) >= max_commands:
