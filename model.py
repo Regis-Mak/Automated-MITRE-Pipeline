@@ -63,7 +63,8 @@ config = {
     # Additional datasets to incorporate (add your own here!)
     'additional_datasets': [
         "aelhalili/bash-commands-dataset",  # Bash commands
-        "dessertlab/offensive-powershell",  # Powershell
+        "dessertlab/offensive-powershell",  # Powershell Offensive
+
     ],
     
     # Training parameters
@@ -76,7 +77,7 @@ config = {
     'seed': 42,
     
     # Output
-    'max_commands': 100,
+    'max_commands': 750,
 }
 
 # ==========================================
@@ -118,6 +119,36 @@ for dataset_name in config['additional_datasets']:
                 prompt = f"### Task: {example['prompt']}\n\n### Command:\n{example['response']}"
                 return {"text": prompt}
             ds = ds.map(format_bash, remove_columns=ds.column_names)
+        
+        # Format PowerShell dataset
+        elif "powershell" in dataset_name.lower():
+            def format_powershell(example):
+                # Check which fields are available and format accordingly
+                if 'code' in example:
+                    code = example['code']
+                    prompt = f"### Task: PowerShell command\n\n### Command:\n{code}"
+                elif 'script' in example:
+                    code = example['script']
+                    prompt = f"### Task: PowerShell script\n\n### Command:\n{code}"
+                else:
+                    # Fallback: use first text field found
+                    prompt = str(next(iter(example.values())))
+                return {"text": prompt}
+            ds = ds.map(format_powershell, remove_columns=ds.column_names)
+        
+        # Generic formatter for other datasets
+        else:
+            def format_generic(example):
+                # Try to find text field
+                if 'text' in example:
+                    return {"text": example['text']}
+                elif 'content' in example:
+                    return {"text": example['content']}
+                else:
+                    # Convert first field to text
+                    first_value = next(iter(example.values()))
+                    return {"text": str(first_value)}
+            ds = ds.map(format_generic, remove_columns=ds.column_names)
         
         all_datasets.append(ds)
         print(f"    ✅ Loaded {len(ds)} examples")
@@ -193,7 +224,7 @@ trainer = SFTTrainer(
     model=model,
     args=training_args,
     train_dataset=combined_dataset,
-    formatting_func=lambda x: x["text"],
+    dataset_text_field="text",  # Explicitly specify the text field
     max_seq_length=512,
     tokenizer=tokenizer,
 )
