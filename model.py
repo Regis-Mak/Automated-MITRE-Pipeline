@@ -38,15 +38,13 @@ class TrainingConfig:
             self.columns_to_use = ["ID", "STIX ID", "name", "description", "url", "tactics", "platforms"]
 
 # 3. TRAINING FUNCTION
-train_model = modal.Function.from_name("train_model", create_if_missing=True)
-
 @modal.function(
     image=train_image,
     gpu="T4",
     volumes={"/models": model_storage},
     timeout=3600,
 )
-def train_model_fn(config: TrainingConfig):
+def train_model(config: TrainingConfig):
     from transformers import (
         AutoModelForCausalLM,
         AutoTokenizer,
@@ -188,7 +186,7 @@ def generate_text(prompt: str, model_path: str):
     image=train_image,
     gpu="T4",
     volumes={"/models": model_storage},
-    timeout=7200,  # 2 hours for generating all commands
+    timeout=7200,
 )
 def generate_all_commands(excel_file: str, model_path: str, output_file: str = "generated_commands.json"):
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -261,9 +259,11 @@ Platforms: {row['platforms']}
     return output_file
 
 # ==========================================
-# RUN THE TRAINING
+# NOTEBOOK EXECUTION CELLS
+# Run these in separate cells in your Modal notebook
 # ==========================================
 
+# CELL 1: Configure and start training
 config = TrainingConfig(
     base_model="microsoft/phi-2",
     bash_dataset="aelhalili/bash-commands-dataset",
@@ -272,13 +272,10 @@ config = TrainingConfig(
 )
 
 print("🚀 Starting training...")
-model_path = train_model_fn.remote(config)
+model_path = train_model.remote(config)
 print(f"✅ Model saved to: {model_path}")
 
-# ==========================================
-# TEST THE MODEL
-# ==========================================
-
+# CELL 2: Test the model
 print("\n🧪 Testing the model...")
 test_result = generate_text.remote(
     prompt="### Cybersecurity Technique: Process Injection\n\nDescription: Inject malicious code into legitimate process\n\n### Suggested Commands for Detection/Investigation:\n",
@@ -286,10 +283,7 @@ test_result = generate_text.remote(
 )
 print(test_result)
 
-# ==========================================
-# GENERATE COMMANDS FOR ALL TECHNIQUES
-# ==========================================
-
+# CELL 3: Generate commands for ALL techniques
 print("\n🔄 Generating commands for ALL techniques...")
 output_file = generate_all_commands.remote(
     excel_file="enterprise-attack-v18.1.xlsx",
