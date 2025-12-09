@@ -7,6 +7,10 @@
 import subprocess
 import sys
 
+print("📦 Upgrading pip to latest version...")
+subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip", "-q"])
+print("✅ Pip upgraded!\n")
+
 print("📦 Installing required packages:")
 packages = [
     "torch==2.8.0",
@@ -47,7 +51,7 @@ print("🔐 Logged into Hugging Face!\n")
 config = {
     'model_name': "meta-llama/Llama-3.1-8B-Instruct",  # Pre-trained model
     'excel_file': "enterprise-attack-v18.1.xlsx",
-    'max_commands': 750,
+    'max_commands': 100,
 }
 
 # ==========================================
