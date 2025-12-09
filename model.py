@@ -1,8 +1,9 @@
 # Modal Notebook - Direct Execution
 # No decorators, no .remote() calls needed!
 
+# ==========================================
 # STEP 0: Install required packages (RUN ONCE, then comment out)
-# Uncomment the section below if packages aren't installed yet
+# ==========================================
 
 import subprocess
 import sys
@@ -26,6 +27,10 @@ for package in packages:
 
 print("✅ Packages installed!\n")
 
+# ==========================================
+# IMPORTS
+# ==========================================
+
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -33,10 +38,20 @@ from transformers import (
 )
 from peft import LoraConfig, get_peft_model
 from trl import SFTTrainer
+from huggingface_hub import login
 import datasets
 import pandas as pd
 import json
 import re
+import os
+
+# ==========================================
+# STEP 0: HUGGINGFACE LOGIN (MODAL SECRET)
+# ==========================================
+
+hf_token = os.environ["HF_TOKEN"]
+login(token=hf_token)
+print("🔐 Logged into Hugging Face!")
 
 # ==========================================
 # STEP 1: TRAIN THE MODEL
@@ -46,10 +61,10 @@ print("🚀 Starting training...")
 
 # Configuration
 config = {
-    'base_model': "meta-llama/Llama-3.1-8B-Instruct",  # Changed to Llama 3.1
+    'base_model': "meta-llama/Llama-3.1-8B-Instruct",
     'bash_dataset': "aelhalili/bash-commands-dataset",
     'excel_file': "enterprise-attack-v18.1.xlsx",
-    'max_steps': 750,  # Increased to 750
+    'max_steps': 750,
     'batch_size': 1,
     'gradient_accumulation_steps': 4,
     'learning_rate': 2e-4,
