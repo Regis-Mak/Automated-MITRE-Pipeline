@@ -8,7 +8,7 @@
 import subprocess
 import sys
 
-print("📦 Installing required packages...")
+print("📦 Installing required packages:")
 packages = [
     "torch==2.5.1",
     "torchvision==0.20.1",
@@ -22,10 +22,11 @@ packages = [
 ]
 
 for package in packages:
-    print(f"Installing {package}...")
+    print(f"Installing {package}")
     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
 print("✅ Packages installed!\n")
+
 
 from transformers import (
     AutoModelForCausalLM,
@@ -209,9 +210,14 @@ print("\n🔄 Generating commands for ALL techniques...")
 df = pd.read_excel(config['excel_file'])
 
 all_commands = []
+max_commands = 700  # Stop when we reach 700 commands
 
 for idx, row in df.iterrows():
-    print(f"Processing {idx + 1}/{len(df)}: {row['name']}")
+    if len(all_commands) >= max_commands:
+        print(f"\n✅ Reached {max_commands} commands! Stopping early.")
+        break
+        
+    print(f"Processing {idx + 1}/{len(df)}: {row['name']} (Commands so far: {len(all_commands)}/{max_commands})")
     
     prompt = f"""### Cybersecurity Technique: {row['name']}
 
@@ -242,8 +248,10 @@ Platforms: {row['platforms']}
     command_lines = re.split(r'\n[-•*]\s*|\n', commands_text)
     command_lines = [cmd.strip().lstrip('-•* ') for cmd in command_lines if cmd.strip()]
     
-    # Create separate entry for each command
+    # Create separate entry for each command (but don't exceed 700 total)
     for command in command_lines:
+        if len(all_commands) >= max_commands:
+            break
         if command:  # Only add non-empty commands
             all_commands.append({
                 "technique_id": row["ID"],
