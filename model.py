@@ -8,7 +8,7 @@
 import subprocess
 import sys
 
-print("📦 Installing required packages")
+print("📦 Installing required packages:")
 packages = [
     "torch==2.5.1",
     "torchvision==0.20.1",
@@ -22,10 +22,11 @@ packages = [
 ]
 
 for package in packages:
-    print(f"Installing {package} . . .")
+    print(f"Installing {package}. . .")
     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
 print("✅ Packages installed!\n")
+
 
 from transformers import (
     AutoModelForCausalLM,
@@ -213,7 +214,14 @@ print(test_result)
 
 print("\n🔄 Generating commands for ALL techniques...")
 
-# Model is already loaded from step 2
+# Load model fresh for generation
+model = AutoModelForCausalLM.from_pretrained(
+    model_path,
+    torch_dtype=torch.float16,
+    device_map="auto",
+    low_cpu_mem_usage=True,
+)
+tokenizer = AutoTokenizer.from_pretrained(model_path)
 
 # Reload Excel
 df = pd.read_excel(config['excel_file'])
