@@ -312,7 +312,7 @@ for idx, row in df.iterrows():
             break
         
         description = str(row['description'])[:500]
-        prompt = f"### Task: Create a one line {shell_type} command to execute {row['name']}. Ensure that the command is valid, and can be run with no issues. Do NOT assume that there are already files/executables available to be used.\n\n### Description: {description}\n\n### Command:\n"
+        prompt = f"### Task: Create a one line {shell_type} command to execute {row['name']}. Ensure that the command is valid, and can be run with no issues. Do NOT assume that there are already files/executables available to be used. Do not have comments in the command you give.\n\n### Description: {description}\n\n### Command:\n"
         
         inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
         outputs = model.generate(
@@ -338,8 +338,8 @@ for idx, row in df.iterrows():
                 "stix_id": row["STIX ID"],
                 "technique_name": row["name"],
                 "tactic": row["tactics"],
-                "platform": platform.capitalize(),  # Individual platform
-                "all_platforms": row["platforms"],  # Original platforms string
+                "platform": platform.capitalize(),
+                "all_platforms": row["platforms"],
                 "shell_type": shell_type,
                 "description": row["description"],
                 "url": row["url"],
