@@ -122,7 +122,7 @@ print(f"📦 Loading PowerShell dataset: {config['powershell_dataset']}")
 powershell_dataset = datasets.load_dataset(config['powershell_dataset'], split="train")
 
 def format_powershell_commands(example):
-    prompt = f"### Task: {example['text']}\n\n### Command:\n{example['text']}"
+    prompt = f"### Task: {example['n1']}\n\n### Command:\n{example['code']}"
     return {"text": prompt}
 
 powershell_dataset = powershell_dataset.map(format_powershell_commands, remove_columns=powershell_dataset.column_names)
