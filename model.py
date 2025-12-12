@@ -4,11 +4,11 @@ global_start_time = time.time()
 import subprocess
 import sys
 
-print("📦 Upgrading pip to latest version...")
+print("Upgrading pip to latest version...")
 subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip", "-q"])
-print("✅ Pip upgraded!\n")
+print("Pip upgraded!\n")
 
-print("📦 Installing required packages:")
+print("Installing required packages:")
 packages = [
     "transformers==4.45.2",
     "datasets==3.1.0",
@@ -23,7 +23,7 @@ for package in packages:
     print(f"Installing {package}...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
-print("✅ Packages installed!\n")
+print("Packages installed!\n")
 
 from transformers import (
     AutoModelForCausalLM,
@@ -323,7 +323,7 @@ try:
     upload_folder(folder_path="mitre_with_commands.json", repo_id="rmak4/MITRE", repo_type="dataset")
 except:
     print("something went wrong uplading")
-    
+
 generation_end_time = time.time()   
 generation_time = generation_end_time - generation_start_time
 generation_hours = int(generation_time // 3600)
