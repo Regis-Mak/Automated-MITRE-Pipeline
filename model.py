@@ -1,5 +1,3 @@
-# STEP 0: Install required packages
-
 import time
 global_start_time = time.time()
 
@@ -41,26 +39,16 @@ import torch
 import os
 import gc
 
-# ==========================================
-# HUGGINGFACE LOGIN
-# ==========================================
-
 from huggingface_hub import login
 
 hf_token = os.environ.get("HF_TOKEN")
 login(token=hf_token)
 
-print("🔐 Logged into Hugging Face!\n")
-
-# ==========================================
-# CONFIGURATION
-# ==========================================
+print("Logged into Hugging Face!\n")
 
 config = {
-    # Model settings
-    'base_model': "meta-llama/Meta-Llama-3-70B-Instruct",  # 70B parameter model
+    'base_model': "meta-llama/Meta-Llama-3-70B-Instruct",
     
-    # Data sources
     'excel_file': "enterprise-attack-v18.1.xlsx",
     'additional_datasets': {
         'bash_commands': "aelhalili/bash-commands-dataset",
@@ -80,9 +68,6 @@ config = {
     'max_commands': 700,
 }
 
-# ==========================================
-# STEP 1: LOAD MODEL
-# ==========================================
 
 print("🚀 Starting training...")
 training_start_time = time.time()
@@ -101,13 +86,9 @@ tokenizer.pad_token = tokenizer.eos_token
 
 model.gradient_checkpointing_enable()
 
-print("✅ Base model loaded!\n")
+print("Base model loaded!\n")
 
-# ==========================================
-# STEP 2: PREPARE TRAINING DATA
-# ==========================================
-
-print("📊 Loading datasets...\n")
+print("Loading datasets...\n")
 
 all_datasets = []
 
@@ -157,18 +138,15 @@ techniques_dataset = techniques_dataset.map(format_technique_prompt)
 all_datasets.append(techniques_dataset)
 print(f"    ✅ Loaded {len(techniques_dataset)} technique examples")
 
-# Combine all datasets
+# Combine datasets
 from datasets import concatenate_datasets
 combined_dataset = concatenate_datasets(all_datasets)
 combined_dataset = combined_dataset.shuffle(seed=config['seed'])
 
-print(f"\n📊 Total training examples: {len(combined_dataset)}")
+print(f"\nTotal training examples: {len(combined_dataset)}")
 
-# ==========================================
-# STEP 3: ADD LORA & TRAIN
-# ==========================================
 
-print("\n🔧 Adding LoRA adapters...")
+print("\nAdding LoRA adapters...")
 
 lora_config = LoraConfig(
     r=config['lora_r'],
@@ -208,10 +186,10 @@ trainer = SFTTrainer(
     tokenizer=tokenizer,
 )
 
-print("\n🏋️ Training...")
+print("\nTraining...")
 trainer.train()
 
-print("\n💾 Saving model...")
+print("\nSaving model...")
 model.save_pretrained("./my-trained-model")
 tokenizer.save_pretrained("./my-trained-model")
 
@@ -221,16 +199,12 @@ training_hours = int(training_time // 3600)
 training_minutes = int((training_time % 3600) // 60)
 training_seconds = int(training_time % 60)
 
-print("✅ Training complete!")
+print("Training complete!")
 print(f"⏱️  Training time: {training_hours}h {training_minutes}m {training_seconds}s ({training_time:.2f}s)\n")
 
 model_path = "./my-trained-model"
 
-# ==========================================
-# STEP 4: TEST MODEL
-# ==========================================
-
-print("\n🧪 Testing the model...")
+print("\nTesting the model...")
 test_start_time = time.time()
 
 test_prompt = "### Task: Create a bash command to detect Process Injection\n\n### Command:\n"
@@ -254,11 +228,8 @@ test_seconds = int(test_time % 60)
 
 print(f"\n⏱️  Testing time: {test_minutes}m {test_seconds}s ({test_time:.2f}s)\n")
 
-# ==========================================
-# STEP 5: GENERATE COMMANDS (MULTI-PLATFORM)
-# ==========================================
 
-print("\n🔄 Generating commands for MITRE techniques...")
+print("\nGenerating commands for MITRE techniques...")
 generation_start_time = time.time()
 
 df = pd.read_excel(config['excel_file'])
@@ -297,7 +268,6 @@ for idx, row in df.iterrows():
     
     platforms_and_shells = get_platforms_and_shells(row['platforms'])
     
-    # Skip if no supported OS platforms
     if not platforms_and_shells:
         print(f"Skipping {row['name']} - Platform: {row['platforms']}")
         continue
@@ -305,14 +275,13 @@ for idx, row in df.iterrows():
     print(f"Processing {idx + 1}/{len(df)}: {row['name']} (Commands: {len(all_commands)}/{max_commands})")
     print(f"  Platforms detected: {[p[0] for p in platforms_and_shells]}")
     
-    # Generate a command for each platform
     for platform, shell_type in platforms_and_shells:
         if len(all_commands) >= max_commands:
             print(f"\n✅ Reached {max_commands} commands! Stopping early.")
             break
         
         description = str(row['description'])[:500]
-        prompt = f"### Task: Create a one line {shell_type} command to execute {row['name']}. Ensure that the command is valid, and can be run with no issues. Do NOT assume that there are already files/executables available to be used. Do not have comments in the command you give.\n\n### Description: {description}\n\n### Command:\n"
+        prompt = f"### Task: Create a one line {shell_type} command to execute {row['name']}. Ensure that the command is valid, and can be run with no issues. Do NOT assume that there are already files/executables available to be used. Do not have comments in the command you generate.\n\n### Description: {description}\n\n### Command:\n"
         
         inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
         outputs = model.generate(
