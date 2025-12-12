@@ -15,9 +15,9 @@ print("✅ Pip upgraded!\n")
 
 print("📦 Installing required packages.")
 packages = [
-    "torch==2.5.1",
-    "torchvision==0.20.1",
-    "transformers==4.46.0",
+    "torch==2.8.0",
+    "torchvision==0.23.0",
+    "transformers==4.45.2",
     "datasets==3.1.0",
     "accelerate==1.1.1",
     "peft==0.13.2",
