@@ -66,7 +66,7 @@ training_start_time = time.time()
 
 # Configuration
 config = {
-    'base_model': "meta-llama/Llama-3.1-8B-Instruct",
+    'base_model': "meta-llama/Meta-Llama-3-70B-Instruct",
     'bash_dataset': "aelhalili/bash-commands-dataset",
     'powershell_dataset': "dessertlab/offensive-powershell",
     'excel_file': "enterprise-attack-v18.1.xlsx",
