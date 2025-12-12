@@ -359,6 +359,3 @@ print(f"TOTAL:      {total_hours}h {total_minutes}m {total_seconds}s ({total_tim
 print("="*60)
 
 print(f"\n🎉 DONE!")
-
-print("\n🛑 Shutting down Modal kernel...")
-sys.exit(0)
