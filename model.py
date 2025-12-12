@@ -60,7 +60,6 @@ config = {
     'base_model': "meta-llama/Llama-3.1-8B-Instruct",  # Pre-trained model
     'excel_file': "enterprise-attack-v18.1.xlsx",
     
-    # Additional datasets to incorporate (add your own here!)
     'additional_datasets': [
         "aelhalili/bash-commands-dataset",  # Bash commands
         "dessertlab/offensive-powershell",  # Powershell Offensive
@@ -68,7 +67,7 @@ config = {
     ],
     
     # Training parameters
-    'max_steps': 500,
+    'max_steps': 750    ,
     'batch_size': 1,
     'gradient_accumulation_steps': 4,
     'learning_rate': 2e-4,
@@ -77,7 +76,7 @@ config = {
     'seed': 42,
     
     # Output
-    'max_commands': 750,
+    'max_commands': 700,
 }
 
 # ==========================================
@@ -278,7 +277,7 @@ print("\n" + "="*80 + "\n")
 # STEP 5: GENERATE COMMANDS FOR ALL TECHNIQUES
 # ==========================================
 
-print("🔄 Generating commands for ALL MITRE ATT&CK techniques...\n")
+print("🔄 Generating commands for MITRE ATT&CK techniques...\n")
 
 # Reload Excel
 df = pd.read_excel(config['excel_file'])
