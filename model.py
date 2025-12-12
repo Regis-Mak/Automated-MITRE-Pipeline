@@ -92,8 +92,7 @@ print(f"📦 Loading model: {config['base_model']}")
 model = AutoModelForCausalLM.from_pretrained(
     config['base_model'],
     trust_remote_code=True,
-    device_map="auto",
-    torch_dtype="auto",
+    torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
 )
 
