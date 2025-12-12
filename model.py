@@ -233,19 +233,6 @@ model_path = "./my-trained-model"
 print("\n🧪 Testing the model...")
 test_start_time = time.time()
 
-del model
-del trainer
-torch.cuda.empty_cache()
-gc.collect()
-
-model = AutoModelForCausalLM.from_pretrained(
-    model_path,
-    torch_dtype=torch.float16,
-    device_map="auto",
-    low_cpu_mem_usage=True,
-)
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-
 test_prompt = "### Task: Create a bash command to detect Process Injection\n\n### Command:\n"
 
 inputs = tokenizer(test_prompt, return_tensors="pt").to("cuda")
@@ -273,14 +260,6 @@ print(f"\n⏱️  Testing time: {test_minutes}m {test_seconds}s ({test_time:.2f}
 
 print("\n🔄 Generating commands for MITRE techniques...")
 generation_start_time = time.time()
-
-model = AutoModelForCausalLM.from_pretrained(
-    model_path,
-    torch_dtype=torch.float16,
-    device_map="auto",
-    low_cpu_mem_usage=True,
-)
-tokenizer = AutoTokenizer.from_pretrained(model_path)
 
 df = pd.read_excel(config['excel_file'])
 
