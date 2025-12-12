@@ -39,7 +39,7 @@ import torch
 import os
 import gc
 
-from huggingface_hub import login
+from huggingface_hub import login, upload_folder
 
 hf_token = os.environ.get("HF_TOKEN")
 login(token=hf_token)
@@ -319,8 +319,12 @@ for idx, row in df.iterrows():
 output_file = "mitre_with_commands.json"
 with open(output_file, 'w') as f:
     json.dump(all_commands, f, indent=2)
-
-generation_end_time = time.time()
+try:
+    upload_folder(folder_path="mitre_with_commands.json", repo_id="rmak4/MITRE", repo_type="dataset")
+except:
+    print("something went wrong uplading")
+    
+generation_end_time = time.time()   
 generation_time = generation_end_time - generation_start_time
 generation_hours = int(generation_time // 3600)
 generation_minutes = int((generation_time % 3600) // 60)
