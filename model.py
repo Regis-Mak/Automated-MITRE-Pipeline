@@ -64,7 +64,7 @@ config = {
     'excel_file': "enterprise-attack-v18.1.xlsx",
     'additional_datasets': {
         'bash_commands': "aelhalili/bash-commands-dataset",
-        'powershell_offensive': "dessertlab/offensive-powershell",
+        # 'powershell_offensive': "dessertlab/offensive-powershell",
     },
     
     # Training parameters
