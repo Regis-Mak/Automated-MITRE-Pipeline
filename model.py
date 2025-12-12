@@ -1,22 +1,17 @@
-# STEP 0: Install required packages (RUN ONCE, then comment out)
-# Uncomment the section below if packages aren't installed yet
+# STEP 0: Install required packages
 
 import time
-
-# START GLOBAL TIMER
 global_start_time = time.time()
 
 import subprocess
 import sys
 
-print("📦 Upgrading pip to latest version.")
+print("📦 Upgrading pip to latest version...")
 subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip", "-q"])
 print("✅ Pip upgraded!\n")
 
-print("📦 Installing required packages.")
+print("📦 Installing required packages:")
 packages = [
-    "torch==2.8.0",
-    "torchvision==0.23.0",
     "transformers==4.45.2",
     "datasets==3.1.0",
     "accelerate==1.1.1",
@@ -27,7 +22,7 @@ packages = [
 ]
 
 for package in packages:
-    print(f"Installing {package}")
+    print(f"Installing {package}...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", package, "-q"])
 
 print("✅ Packages installed!\n")
@@ -42,34 +37,37 @@ from trl import SFTTrainer
 import datasets
 import pandas as pd
 import json
-import re
+import torch
 import os
+import gc
 
 # ==========================================
-# HUGGINGFACE LOGIN (Modal Secret)
+# HUGGINGFACE LOGIN
 # ==========================================
 
 from huggingface_hub import login
 
-# Get token from Modal secret named "llama-secret"
 hf_token = os.environ.get("HF_TOKEN")
 login(token=hf_token)
 
 print("🔐 Logged into Hugging Face!\n")
 
 # ==========================================
-# STEP 1: TRAIN THE MODEL
+# CONFIGURATION
 # ==========================================
 
-print("🚀 Starting training...")
-training_start_time = time.time()
-
-# Configuration
 config = {
-    'base_model': "meta-llama/Meta-Llama-3-70B-Instruct",
-    'bash_dataset': "aelhalili/bash-commands-dataset",
-    'powershell_dataset': "dessertlab/offensive-powershell",
+    # Model settings
+    'base_model': "meta-llama/Meta-Llama-3-70B-Instruct",  # 70B parameter model
+    
+    # Data sources
     'excel_file': "enterprise-attack-v18.1.xlsx",
+    'additional_datasets': {
+        'bash_commands': "aelhalili/bash-commands-dataset",
+        'powershell_offensive': "dessertlab/offensive-powershell",
+    },
+    
+    # Training parameters
     'max_steps': 750,
     'batch_size': 1,
     'gradient_accumulation_steps': 4,
@@ -77,11 +75,20 @@ config = {
     'lora_r': 16,
     'lora_alpha': 16,
     'seed': 42,
+    
+    # Generation settings
+    'max_commands': 700,
 }
+
+# ==========================================
+# STEP 1: LOAD MODEL
+# ==========================================
+
+print("🚀 Starting training...")
+training_start_time = time.time()
 
 print(f"📦 Loading model: {config['base_model']}")
 
-# Load base model
 model = AutoModelForCausalLM.from_pretrained(
     config['base_model'],
     trust_remote_code=True,
@@ -89,13 +96,81 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype="auto",
     low_cpu_mem_usage=True,
 )
+
 tokenizer = AutoTokenizer.from_pretrained(config['base_model'])
 tokenizer.pad_token = tokenizer.eos_token
 
-# Enable gradient checkpointing to save memory
 model.gradient_checkpointing_enable()
 
-# Add LoRA adapters
+print("✅ Base model loaded!\n")
+
+# ==========================================
+# STEP 2: PREPARE TRAINING DATA
+# ==========================================
+
+print("📊 Loading datasets...\n")
+
+all_datasets = []
+
+# Load bash commands dataset
+if 'bash_commands' in config['additional_datasets']:
+    dataset_name = config['additional_datasets']['bash_commands']
+    print(f"  Loading: {dataset_name}")
+    bash_dataset = datasets.load_dataset(dataset_name, split="train")
+    
+    def format_bash_commands(example):
+        prompt = f"### Task: {example['prompt']}\n\n### Command:\n{example['response']}"
+        return {"text": prompt}
+    
+    bash_dataset = bash_dataset.map(format_bash_commands, remove_columns=bash_dataset.column_names)
+    all_datasets.append(bash_dataset)
+    print(f"    ✅ Loaded {len(bash_dataset)} bash examples")
+
+# Load PowerShell dataset
+if 'powershell_offensive' in config['additional_datasets']:
+    dataset_name = config['additional_datasets']['powershell_offensive']
+    print(f"  Loading: {dataset_name}")
+    powershell_dataset = datasets.load_dataset(dataset_name, split="train")
+    
+    def format_powershell_commands(example):
+        prompt = f"### Task: {example['n1']}\n\n### Command:\n{example['code']}"
+        return {"text": prompt}
+    
+    powershell_dataset = powershell_dataset.map(format_powershell_commands, remove_columns=powershell_dataset.column_names)
+    all_datasets.append(powershell_dataset)
+    print(f"    ✅ Loaded {len(powershell_dataset)} PowerShell examples")
+
+# Load MITRE ATT&CK Excel file
+print(f"\n  Loading: {config['excel_file']}")
+df = pd.read_excel(config['excel_file'])
+columns_to_use = ["ID", "STIX ID", "name", "description", "url", "tactics", "platforms"]
+df = df[columns_to_use]
+
+print(f"    Found {len(df)} MITRE techniques")
+
+techniques_dataset = datasets.Dataset.from_pandas(df)
+
+def format_technique_prompt(example):
+    prompt = f"### Task: Create a command to detect {example['name']} on {example['platforms']}\n\n### Command:\n"
+    return {"text": prompt}
+
+techniques_dataset = techniques_dataset.map(format_technique_prompt)
+all_datasets.append(techniques_dataset)
+print(f"    ✅ Loaded {len(techniques_dataset)} technique examples")
+
+# Combine all datasets
+from datasets import concatenate_datasets
+combined_dataset = concatenate_datasets(all_datasets)
+combined_dataset = combined_dataset.shuffle(seed=config['seed'])
+
+print(f"\n📊 Total training examples: {len(combined_dataset)}")
+
+# ==========================================
+# STEP 3: ADD LORA & TRAIN
+# ==========================================
+
+print("\n🔧 Adding LoRA adapters...")
+
 lora_config = LoraConfig(
     r=config['lora_r'],
     lora_alpha=config['lora_alpha'],
@@ -106,53 +181,10 @@ lora_config = LoraConfig(
 )
 model = get_peft_model(model, lora_config)
 
-print(f"📦 Loading bash commands dataset: {config['bash_dataset']}")
+trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+total_params = sum(p.numel() for p in model.parameters())
+print(f"Trainable params: {trainable_params:,} ({100 * trainable_params / total_params:.2f}%)")
 
-# Load bash commands dataset
-bash_dataset = datasets.load_dataset(config['bash_dataset'], split="train")
-
-def format_bash_commands(example):
-    prompt = f"### Task: {example['prompt']}\n\n### Command:\n{example['response']}"
-    return {"text": prompt}
-
-bash_dataset = bash_dataset.map(format_bash_commands, remove_columns=bash_dataset.column_names)
-
-# Load PowerShell dataset
-print(f"📦 Loading PowerShell dataset: {config['powershell_dataset']}")
-powershell_dataset = datasets.load_dataset(config['powershell_dataset'], split="train")
-
-def format_powershell_commands(example):
-    prompt = f"### Task: {example['n1']}\n\n### Command:\n{example['code']}"
-    return {"text": prompt}
-
-powershell_dataset = powershell_dataset.map(format_powershell_commands, remove_columns=powershell_dataset.column_names)
-
-print(f"📦 Loading Excel file: {config['excel_file']}")
-
-# Load Excel file
-df = pd.read_excel(config['excel_file'])
-columns_to_use = ["ID", "STIX ID", "name", "description", "url", "tactics", "platforms"]
-df = df[columns_to_use]
-
-print(f"Found {len(df)} techniques in Excel file")
-
-techniques_dataset = datasets.Dataset.from_pandas(df)
-
-def format_technique_prompt(example):
-    prompt = f"### Task: Create a command to detect {example['name']} on {example['platforms']}\n\n### Command:\n"
-    return {"text": prompt}
-
-techniques_dataset = techniques_dataset.map(format_technique_prompt)
-
-# COMBINE ALL THREE DATASETS
-print(f"Combining {len(bash_dataset)} bash examples + {len(powershell_dataset)} PowerShell examples + {len(techniques_dataset)} technique examples")
-from datasets import concatenate_datasets
-dataset = concatenate_datasets([bash_dataset, powershell_dataset, techniques_dataset])
-dataset = dataset.shuffle(seed=config['seed'])
-
-print(f"Total training examples: {len(dataset)}")
-
-# Training settings
 training_args = TrainingArguments(
     output_dir="./my-trained-model",
     per_device_train_batch_size=config['batch_size'],
@@ -171,16 +203,16 @@ training_args = TrainingArguments(
 trainer = SFTTrainer(
     model=model,
     args=training_args,
-    train_dataset=dataset,
+    train_dataset=combined_dataset,
     formatting_func=lambda x: x["text"],
     max_seq_length=512,
     tokenizer=tokenizer,
 )
 
-print("🏋️ Training...")
+print("\n🏋️ Training...")
 trainer.train()
 
-print("💾 Saving model...")
+print("\n💾 Saving model...")
 model.save_pretrained("./my-trained-model")
 tokenizer.save_pretrained("./my-trained-model")
 
@@ -196,22 +228,16 @@ print(f"⏱️  Training time: {training_hours}h {training_minutes}m {training_s
 model_path = "./my-trained-model"
 
 # ==========================================
-# STEP 2: TEST THE MODEL
+# STEP 4: TEST MODEL
 # ==========================================
 
 print("\n🧪 Testing the model...")
 test_start_time = time.time()
 
-# Clear memory and reload properly
 del model
 del trainer
-import torch
-import gc
 torch.cuda.empty_cache()
 gc.collect()
-
-# Reload with proper settings
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
@@ -243,13 +269,12 @@ test_seconds = int(test_time % 60)
 print(f"\n⏱️  Testing time: {test_minutes}m {test_seconds}s ({test_time:.2f}s)\n")
 
 # ==========================================
-# STEP 3: GENERATE COMMANDS FOR ALL TECHNIQUES
+# STEP 5: GENERATE COMMANDS
 # ==========================================
 
-print("\n🔄 Generating commands for ALL techniques...")
+print("\n🔄 Generating commands for MITRE techniques...")
 generation_start_time = time.time()
 
-# Load model fresh for generation
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
     torch_dtype=torch.float16,
@@ -258,27 +283,26 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-# Reload Excel
 df = pd.read_excel(config['excel_file'])
 
 all_commands = []
-max_commands = 750
+max_commands = config['max_commands']
 
 for idx, row in df.iterrows():
     if len(all_commands) >= max_commands:
         print(f"\n✅ Reached {max_commands} commands! Stopping early.")
         break
         
-    print(f"Processing {idx + 1}/{len(df)}: {row['name']} (Commands so far: {len(all_commands)}/{max_commands})")
+    print(f"Processing {idx + 1}/{len(df)}: {row['name']} (Commands: {len(all_commands)}/{max_commands})")
     
-    # Determine shell type based on platform
     platform = str(row['platforms']).lower()
     
-    # Skip if platform is not Windows, Linux, or macOS
+    # Skip non-OS platforms
     if not any(x in platform for x in ['windows', 'linux', 'macos', 'mac']):
         print(f"Skipping {row['name']} - Platform: {row['platforms']}")
         continue
     
+    # Determine shell type
     if 'windows' in platform:
         shell_type = "PowerShell"
     elif 'linux' in platform:
@@ -288,12 +312,8 @@ for idx, row in df.iterrows():
     else:
         shell_type = "bash"
     
-    # Create dynamic prompt with description for context
     description = str(row['description'])[:500]
-    prompt = f"""### Task: Create a one line {shell_type} command to execute {row['name']}. 
-    Ensure that the command is valid, and can be run with no issues. 
-    Do NOT assume that there are already files/executables available to be used.\n\n
-    ### Description: {description}\n\n### Command:\n"""
+    prompt = f"### Task: Create a one line {shell_type} command to execute {row['name']}. Ensure that the command is valid, and can be run with no issues. Do NOT assume that there are already files/executables available to be used.\n\n### Description: {description}\n\n### Command:\n"
     
     inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
     outputs = model.generate(
@@ -306,13 +326,11 @@ for idx, row in df.iterrows():
     
     generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
-    # Extract just the command after "### Command:"
     if "### Command:" in generated:
         command = generated.split("### Command:")[-1].strip()
     else:
         command = generated.strip()
     
-    # Take only the first line as the command
     command = command.split('\n')[0].strip()
     
     if command and len(command) > 5:
@@ -328,7 +346,6 @@ for idx, row in df.iterrows():
             "command": command
         })
 
-# Save results as JSON
 output_file = "mitre_with_commands.json"
 with open(output_file, 'w') as f:
     json.dump(all_commands, f, indent=2)
@@ -339,9 +356,13 @@ generation_hours = int(generation_time // 3600)
 generation_minutes = int((generation_time % 3600) // 60)
 generation_seconds = int(generation_time % 60)
 
-print(f"✅ Generated {len(all_commands)} unique commands from {len(df)} techniques!")
+print(f"\n✅ Generated {len(all_commands)} unique commands!")
 print(f"💾 Saved to {output_file}")
 print(f"⏱️  Generation time: {generation_hours}h {generation_minutes}m {generation_seconds}s ({generation_time:.2f}s)\n")
+
+# ==========================================
+# TIME SUMMARY
+# ==========================================
 
 global_end_time = time.time()
 total_time = global_end_time - global_start_time
@@ -361,6 +382,5 @@ print("="*60)
 
 print(f"\n🎉 DONE!")
 
-# Shut down notebook to save resources
 print("\n🛑 Shutting down Modal kernel...")
 sys.exit(0)
