@@ -255,7 +255,7 @@ test_seconds = int(test_time % 60)
 print(f"\n⏱️  Testing time: {test_minutes}m {test_seconds}s ({test_time:.2f}s)\n")
 
 # ==========================================
-# STEP 5: GENERATE COMMANDS
+# STEP 5: GENERATE COMMANDS (MULTI-PLATFORM)
 # ==========================================
 
 print("\n🔄 Generating commands for MITRE techniques...")
@@ -266,63 +266,86 @@ df = pd.read_excel(config['excel_file'])
 all_commands = []
 max_commands = config['max_commands']
 
+# Platform to shell type mapping
+PLATFORM_SHELL_MAP = {
+    'windows': 'PowerShell',
+    'linux': 'bash',
+    'macos': 'Unix',
+    'mac': 'Unix',
+}
+
+def get_platforms_and_shells(platform_string):
+    """Extract individual platforms and their corresponding shell types"""
+    if pd.isna(platform_string):
+        return []
+    
+    platform_string = str(platform_string).lower()
+    platforms_found = []
+    
+    for platform, shell in PLATFORM_SHELL_MAP.items():
+        if platform in platform_string:
+            # Avoid duplicates (mac and macos both map to Unix)
+            if (platform, shell) not in platforms_found:
+                platforms_found.append((platform, shell))
+    
+    return platforms_found
+
 for idx, row in df.iterrows():
     if len(all_commands) >= max_commands:
         print(f"\n✅ Reached {max_commands} commands! Stopping early.")
         break
-        
-    print(f"Processing {idx + 1}/{len(df)}: {row['name']} (Commands: {len(all_commands)}/{max_commands})")
     
-    platform = str(row['platforms']).lower()
+    platforms_and_shells = get_platforms_and_shells(row['platforms'])
     
-    # Skip non-OS platforms
-    if not any(x in platform for x in ['windows', 'linux', 'macos', 'mac']):
+    # Skip if no supported OS platforms
+    if not platforms_and_shells:
         print(f"Skipping {row['name']} - Platform: {row['platforms']}")
         continue
     
-    # Determine shell type
-    if 'windows' in platform:
-        shell_type = "PowerShell"
-    elif 'linux' in platform:
-        shell_type = "bash"
-    elif 'macos' in platform or 'mac' in platform:
-        shell_type = "Unix"
-    else:
-        shell_type = "bash"
+    print(f"Processing {idx + 1}/{len(df)}: {row['name']} (Commands: {len(all_commands)}/{max_commands})")
+    print(f"  Platforms detected: {[p[0] for p in platforms_and_shells]}")
     
-    description = str(row['description'])[:500]
-    prompt = f"### Task: Create a one line {shell_type} command to execute {row['name']}. Ensure that the command is valid, and can be run with no issues. Do NOT assume that there are already files/executables available to be used.\n\n### Description: {description}\n\n### Command:\n"
-    
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=80,
-        temperature=0.7,
-        do_sample=True,
-        pad_token_id=tokenizer.eos_token_id,
-    )
-    
-    generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
-    if "### Command:" in generated:
-        command = generated.split("### Command:")[-1].strip()
-    else:
-        command = generated.strip()
-    
-    command = command.split('\n')[0].strip()
-    
-    if command and len(command) > 5:
-        all_commands.append({
-            "technique_id": row["ID"],
-            "stix_id": row["STIX ID"],
-            "technique_name": row["name"],
-            "tactic": row["tactics"],
-            "platform": row["platforms"],
-            "shell_type": shell_type,
-            "description": row["description"],
-            "url": row["url"],
-            "command": command
-        })
+    # Generate a command for each platform
+    for platform, shell_type in platforms_and_shells:
+        if len(all_commands) >= max_commands:
+            print(f"\n✅ Reached {max_commands} commands! Stopping early.")
+            break
+        
+        description = str(row['description'])[:500]
+        prompt = f"### Task: Create a one line {shell_type} command to execute {row['name']}. Ensure that the command is valid, and can be run with no issues. Do NOT assume that there are already files/executables available to be used.\n\n### Description: {description}\n\n### Command:\n"
+        
+        inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=80,
+            temperature=0.7,
+            do_sample=True,
+            pad_token_id=tokenizer.eos_token_id,
+        )
+        
+        generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        
+        if "### Command:" in generated:
+            command = generated.split("### Command:")[-1].strip()
+        else:
+            command = generated.strip()
+        
+        command = command.split('\n')[0].strip()
+        
+        if command and len(command) > 5:
+            all_commands.append({
+                "technique_id": row["ID"],
+                "stix_id": row["STIX ID"],
+                "technique_name": row["name"],
+                "tactic": row["tactics"],
+                "platform": platform.capitalize(),  # Individual platform
+                "all_platforms": row["platforms"],  # Original platforms string
+                "shell_type": shell_type,
+                "description": row["description"],
+                "url": row["url"],
+                "command": command
+            })
+            print(f"  ✅ Generated {shell_type} command for {platform}")
 
 output_file = "mitre_with_commands.json"
 with open(output_file, 'w') as f:
@@ -337,25 +360,3 @@ generation_seconds = int(generation_time % 60)
 print(f"\n✅ Generated {len(all_commands)} unique commands!")
 print(f"💾 Saved to {output_file}")
 print(f"⏱️  Generation time: {generation_hours}h {generation_minutes}m {generation_seconds}s ({generation_time:.2f}s)\n")
-
-# ==========================================
-# TIME SUMMARY
-# ==========================================
-
-global_end_time = time.time()
-total_time = global_end_time - global_start_time
-total_hours = int(total_time // 3600)
-total_minutes = int((total_time % 3600) // 60)
-total_seconds = int(total_time % 60)
-
-print("\n" + "="*60)
-print("⏱️  TIME SUMMARY")
-print("="*60)
-print(f"Training:   {training_hours}h {training_minutes}m {training_seconds}s ({training_time:.2f}s)")
-print(f"Testing:    {test_minutes}m {test_seconds}s ({test_time:.2f}s)")
-print(f"Generation: {generation_hours}h {generation_minutes}m {generation_seconds}s ({generation_time:.2f}s)")
-print("-"*60)
-print(f"TOTAL:      {total_hours}h {total_minutes}m {total_seconds}s ({total_time:.2f}s)")
-print("="*60)
-
-print(f"\n🎉 DONE!")
