@@ -1,0 +1,156 @@
+CSE 132 Final Project
+
+Students will build an automated pipeline that generates offensive security commands aligned with the MITRE ATT&CK Framework. This project focuses on understanding adversarial techniques and exploring AI-assisted security testing tools.
+
+Objectives
+
+Develop a multi-agent pipeline for command generation
+
+Leverage LLMs to automatically generate commands for specific ATT&CK techniques
+
+Validate command correctness and relevance to specified techniques
+
+Resources
+
+Here are some resources for inspiration, but you can use whatever you want to complete this project. You can fine-tune a model, generate commands with a current model, generate command-line data from software code datasets, use RAG, or generate pipelines with all of this.
+
+Modal (Our sponsor for $500 credits for every student!)
+
+We are running these notebooks on Modal, and so you'll need to read the
+Modal Documentation
+
+for help.
+
+They have guides, examples, and references that will answer a lot of your questions.
+
+When you're writing code in your notebook, treat it like local code and do not add any .remote() calls.
+
+If you haven't received an email with access for credits, let us know.
+
+Inference
+
+This is useful when you call a model (LLM).
+
+Models are very verbose. If you want to force structured output from models, you can use:
+
+https://github.com/dottxt-ai/outlines
+
+RAG is a technology where you can get relevant information from a big file or database to embed it into your prompt. If you have a huge document, you may not need it all, but just parts of it. With RAG, you'll get what you need from your document or dataset.
+
+Here is an example on how to use it:
+https://modal.com/notebooks/sevalder/_/nb-Gi6vnvDbDwPgAzqw6tdyPO
+
+Ideas for RAG
+
+Get the MITRE ATT&CK definitions from a document
+
+Get examples from a huge dataset
+
+Search over man pages or command descriptions
+
+Training
+
+This is useful if you want to make your model better at a certain task.
+
+We built a functional Jupyter Notebook that trains a model using a specific dataset:
+https://modal.com/notebooks/najilau/_/nb-d1hbAytdoaUoDYSo47cLx5
+
+This is just an example. Try to understand the code and use what you think is appropriate.
+
+Bash Command Dataset
+https://huggingface.co/datasets/aelhalili/bash-commands-dataset
+
+Models
+
+We recommend choosing an open source model like Qwen, Llama 3.1, etc. on HuggingFace.
+
+As you have $500 in credits (you may choose the GPU being used), we recommend choosing a model between 7B and 32B.
+
+Pipeline
+
+Think of it as a series of modular stages, each with a clear responsibility. Instead of one giant black box prompt, you chain together smaller, specialized steps. This makes the system:
+
+Reproducible: you can rerun the same steps and get consistent results
+
+Transparent: each stage has a clear role (retrieval, generation, validation)
+
+Composable: you can swap in different tools (LangChain, DSPy, Outlines, etc.)
+
+An example would be:
+
+For generating adversarial commands aligned with MITRE ATT&CK, a pipeline might look like this:
+
+Input / Task Definition
+Student specifies a technique ID (e.g., ) or description ("Command and Scripting Interpreter").
+
+Retrieval (optional, RAG)
+Pull relevant definitions, examples, or man page snippets from a knowledge base.
+Example: use LangChain and Chroma to fetch ATT&CK descriptions.
+
+Generation (LLM Inference)
+Call a local or hosted LLM to propose candidate commands.
+Example: DSPy module or Hugging Face pipeline.
+
+Structuring / Constraining
+Force the model to output in a predictable schema (JSON, Pydantic, regex).
+Tools: Outlines, Guardrails, Instructor.
+
+Validation / Filtering
+Check if the command is syntactically valid, relevant to the technique, or passes a regex check.
+Example: ensure wmic appears in T1047 outputs.
+
+Output / Logging
+Store results in a dataset for grading, benchmarking, or further analysis.
+
+Final artifacts we expect to see
+
+A generated dataset (from 500 to 700 samples; any other sample count will be omitted) pushed to HuggingFace as a public dataset (as a Parquet file).
+The name of the column containing the command must be called Command.
+
+Project Report (PDF) of at least 4 pages long discussing:
+
+Links to your Modal notebook (set it to public access)
+
+Link to your public HuggingFace dataset
+
+Description of your approach (steps, model choice, hyperparameters, training duration)
+
+Your pipeline (how you created and validated the commands)
+
+Design considerations
+
+Challenges encountered and how you addressed them
+
+Insights from the results (do the results make sense, what was surprising, which results required revisiting your approach)
+
+Choose 5–10 example generated commands with brief quality commentary
+
+Lessons learned
+
+Grading criteria
+
+Syntactic correctness (would the command run in a real system): 20%
+
+We will run a pipeline to check this
+
+Semantic correctness (are the MITRE labels appropriate): 25%
+
+We will run a pipeline to check this
+
+Command diversity: 25%
+
+We will evaluate similarity to public datasets and previously submitted class datasets
+
+We will run command similarity checks over all public datasets
+
+Quality of the model notebook: 20%
+
+Quality of the PDF report: 10%
+
+Deadlines
+
+November 26 (Optional)
+If you submit the dataset by this date, you will receive a preliminary dataset grade by December 2.
+
+December 12
+Final submission of all required artifacts.
