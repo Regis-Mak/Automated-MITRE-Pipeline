@@ -3,15 +3,11 @@
 ## Overview
 This project builds an automated pipeline that generates offensive security commands aligned with the **MITRE ATT&CK Framework**. The goal is to understand adversarial techniques and explore AI-assisted security testing tools through a **multi-agent system**.
 
----
-
 ## Project Goals
 - Develop a **multi-agent pipeline** for generating security commands
 - Leverage **Large Language Models (LLMs)** to automatically produce commands for specific ATT&CK techniques
 - Validate command **correctness** and **relevance** to specified techniques
 - Generate a dataset of **500–700 diverse, syntactically correct** security commands
-
----
 
 ## Technical Approach
 The pipeline follows a **modular architecture** with specialized stages:
@@ -34,8 +30,6 @@ The pipeline follows a **modular architecture** with specialized stages:
 6. **Output**  
    Store results for analysis and benchmarking
 
----
-
 ## Tech Stack
 
 **Infrastructure**
@@ -53,8 +47,6 @@ The pipeline follows a **modular architecture** with specialized stages:
 **Dataset**
 - Bash commands aligned with MITRE ATT&CK techniques
 
----
-
 ## Deliverables
 - **Public HuggingFace dataset**  
   500–700 samples in Parquet format
@@ -64,8 +56,6 @@ The pipeline follows a **modular architecture** with specialized stages:
 
 - **Public Modal notebook**  
   Complete, reproducible implementation
-
----
 
 ## Notes
 This project is intended for **educational and research purposes only**, focusing on understanding adversarial behavior and improving defensive security practices.
